@@ -15,9 +15,8 @@ package com.github.prasanthj.hll;
 
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.HashMap;
 
-import it.unimi.dsi.fastutil.ints.Int2ByteAVLTreeMap;
-import it.unimi.dsi.fastutil.ints.Int2ByteSortedMap;
 
 public class HLLSparseRegister implements HLLRegister {
 
@@ -25,7 +24,7 @@ public class HLLSparseRegister implements HLLRegister {
   // Its easier to use primitive sorted map as opposed to int[] used in this
   // paper
   // http://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40671.pdf
-  private Int2ByteSortedMap sparseMap;
+  private HashMap<Integer, Byte> sparseMap;
 
   // for a better insertion performance values are added to temporary unsorted
   // list which will be merged to sparse map after a threshold
@@ -48,7 +47,7 @@ public class HLLSparseRegister implements HLLRegister {
 
   public HLLSparseRegister(int p, int pp, int qp) {
     this.p = p;
-    this.sparseMap = new Int2ByteAVLTreeMap();
+    this.sparseMap = new HashMap<Integer, Byte>();
     this.tempList = new int[HLLConstants.TEMP_LIST_DEFAULT_SIZE];
     this.tempListIdx = 0;
     this.pPrime = pp;
@@ -170,7 +169,7 @@ public class HLLSparseRegister implements HLLRegister {
 
   public boolean set(int key, byte value) {
     // retain only the largest value for a register index
-    Byte containedValue = sparseMap.get(key);
+    Byte containedValue = sparseMap.getOrDefault(key,(byte)0);
     if (value > containedValue) {
       sparseMap.put(key, value);
       return true;
@@ -178,11 +177,11 @@ public class HLLSparseRegister implements HLLRegister {
     return false;
   }
 
-  public Int2ByteSortedMap getSparseMap() {
+  public HashMap<Integer, Byte> getSparseMap() {
     return getMergedSparseMap();
   }
 
-  private Int2ByteSortedMap getMergedSparseMap() {
+  private HashMap<Integer, Byte> getMergedSparseMap() {
     if (tempListIdx != 0) {
       mergeTempListToSparseMap();
     }

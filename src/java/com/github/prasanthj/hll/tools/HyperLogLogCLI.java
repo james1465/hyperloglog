@@ -24,21 +24,10 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
-import org.apache.commons.cli.BasicParser;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 
 public class HyperLogLogCLI {
 
   public static void main(String[] args) {
-    Options options = new Options();
-    addOptions(options);
-
-    CommandLineParser parser = new BasicParser();
-    CommandLine cli = null;
     long n = 0;
     long seed = 123;
     HyperLogLog.EncodingType enc = HyperLogLog.EncodingType.SPARSE;
@@ -56,114 +45,20 @@ public class HyperLogLogCLI {
     FileInputStream fis = null;
     DataInputStream in = null;
     try {
-      cli = parser.parse(options, args);
 
-      if (!(cli.hasOption('n') || cli.hasOption('f') || cli.hasOption('d') || cli.hasOption('t'))) {
         System.out.println("Example usage: hll -n 1000\n"
                 + "          <OR> hll -f /tmp/input.txt\n"
                 + "          <OR> hll -d -i /tmp/out.hll\n"
                 + "          <OR> cat file | hll -t\n");
-        usage(options);
-        return;
-      }
 
-      if (cli.hasOption('n')) {
-        n = Long.parseLong(cli.getOptionValue('n'));
-      }
+      n=4000;
 
-      if (cli.hasOption('e')) {
-        String value = cli.getOptionValue('e');
-        if (value.equals(HyperLogLog.EncodingType.DENSE.name())) {
-          enc = HyperLogLog.EncodingType.DENSE;
-        }
-      }
-
-      if (cli.hasOption('p')) {
-        p = Integer.parseInt(cli.getOptionValue('p'));
-        if (p < 4 && p > 16) {
-          System.out.println("Warning! Out-of-range value specified for p. Using to p=14.");
-          p = 14;
-        }
-      }
-
-      if (cli.hasOption('c')) {
-        noBias = Boolean.parseBoolean(cli.getOptionValue('c'));
-      }
-
-      if (cli.hasOption('b')) {
-        bitPack = Boolean.parseBoolean(cli.getOptionValue('b'));
-      }
-
-      if (cli.hasOption('f')) {
-        filePath = cli.getOptionValue('f');
-        br = new BufferedReader(new FileReader(new File(filePath)));
-      }
-
-      if (filePath != null && cli.hasOption('n')) {
-        System.out.println("'-f' (input file) specified. Ignoring -n.");
-      }
-
-      if (cli.hasOption('t')) {
-        br = new BufferedReader(new InputStreamReader(System.in));
-      }
-
-      if (cli.hasOption('r')) {
-        printRelativeError  = true;
-      }
-
-      if (cli.hasOption('s')) {
-        if (cli.hasOption('o')) {
-          outFile = cli.getOptionValue('o');
-          fos = new FileOutputStream(new File(outFile));
-          out = new DataOutputStream(fos);
-        } else {
-          System.err.println("Specify output file. Example usage: hll -s -o /tmp/out.hll");
-          usage(options);
-          return;
-        }
-      }
-
-      if (cli.hasOption('d')) {
-        if (cli.hasOption('i')) {
-          inFile = cli.getOptionValue('i');
-          fis = new FileInputStream(new File(inFile));
-          in = new DataInputStream(fis);
-        } else {
-          System.err.println("Specify input file. Example usage: hll -d -i /tmp/in.hll");
-          usage(options);
-          return;
-        }
-      }
-
-      // return after deserialization
-      if (fis != null && in != null) {
-        long start = System.currentTimeMillis();
-        HyperLogLog deserializedHLL = HyperLogLogUtils.deserializeHLL(in);
-        long end = System.currentTimeMillis();
-        System.out.println(deserializedHLL.toString());
-        System.out.println("Count after deserialization: " + deserializedHLL.count());
-        System.out.println("Deserialization time: " + (end - start) + " ms");
-        return;
-      }
 
       // construct hll and serialize it if required
       HyperLogLog hll = HyperLogLog.builder().enableBitPacking(bitPack).enableNoBias(noBias)
           .setEncoding(enc).setNumRegisterIndexBits(p).build();
 
-      if (br != null) {
-        Set<String> hashset = new HashSet<String>();
-        String line;
-        while ((line = br.readLine()) != null) {
-          hll.addString(line);
 
-          //ignore hashset overhead if no relative error needed
-          if(printRelativeError) {
-            hashset.add(line);
-          }
-        }
-
-        n = hashset.size();
-      } else {
         Random rand = new Random(seed);
         for (int i = 0; i < n; i++) {
           if (unique < 0) {
@@ -173,7 +68,6 @@ public class HyperLogLogCLI {
             hll.addLong(val);
           }
         }
-      }
 
       long estCount = hll.count();
       System.out.println(hll.toString());
@@ -181,6 +75,7 @@ public class HyperLogLogCLI {
         System.out.println("Actual count: " + n);
         System.out.println("Relative error: " + HyperLogLogUtils.getRelativeError(n, estCount) + "%");
       }
+      HyperLogLogUtils.serializeHLL(System.out, hll);
 
       if (fos != null && out != null) {
         long start = System.currentTimeMillis();
@@ -191,44 +86,14 @@ public class HyperLogLogCLI {
         System.out.println("Serialization time: " + (end - start) + " ms");
         out.close();
       }
-    } catch (ParseException e) {
-      System.err.println("Invalid parameter.");
-      usage(options);
     } catch (NumberFormatException e) {
       System.err.println("Invalid type for parameter.");
-      usage(options);
     } catch (FileNotFoundException e) {
       System.err.println("Specified file not found.");
-      usage(options);
     } catch (IOException e) {
       System.err.println("Exception occured while reading file.");
-      usage(options);
     }
   }
 
-  private static void addOptions(Options options) {
-    options.addOption("p", "num-register-bits", true, "number of bits from "
-        + "hashcode used as register index between 4 and 16 (both inclusive). " + "default = 14");
-    options.addOption("e", "encoding", true, "specify encoding to use (SPARSE "
-        + "or DENSE). default = SPARSE");
-    options.addOption("b", "enable-bitpacking", true, "enable bit-packing of"
-        + " registers. default = true");
-    options.addOption("c", "no-bias", true, "use bias correction table "
-        + "(no-bias algorithm). default = true");
-    options.addOption("n", "num-random-values", true, "number of random values to generate");
-    options.addOption("f", "file", true, "specify file to read input data");
-    options.addOption("s", "serialize", false,
-        "serialize hyperloglog to file. specify -o for output file");
-    options.addOption("o", "output-file", true, "specify output file for serialization");
-    options.addOption("d", "deserialize", false,
-        "deserialize hyperloglog from file. specify -i for input file");
-    options.addOption("i", "input-file", true, "specify input file for deserialization");
-    options.addOption("t", "standard-in", false, "read data from standard in");
-    options.addOption("r", "relative-error", false, "print relative error calculation");
-  }
 
-  static void usage(Options options) {
-    HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp("HyperLogLog", options);
-  }
 }

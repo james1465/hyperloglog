@@ -16,9 +16,8 @@ package com.github.prasanthj.hll;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.HashMap;
 
-import it.unimi.dsi.fastutil.doubles.Double2IntAVLTreeMap;
-import it.unimi.dsi.fastutil.doubles.Double2IntSortedMap;
 
 /**
  * <pre>
@@ -342,7 +341,7 @@ public class HyperLogLog {
     double[] rawEstForP = HLLConstants.rawEstimateData[p - 4];
 
     // compute distance and store it in sorted map
-    Double2IntSortedMap estIndexMap = new Double2IntAVLTreeMap();
+    HashMap<Double, Integer> estIndexMap = new HashMap();
     double distance = 0;
     for (int i = 0; i < rawEstForP.length; i++) {
       distance = Math.pow(count - rawEstForP[i], 2);

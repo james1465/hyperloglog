@@ -17,7 +17,6 @@
 package com.github.prasanthj.hll;
 
 import com.github.prasanthj.hll.HyperLogLog.EncodingType;
-import it.unimi.dsi.fastutil.ints.Int2ByteSortedMap;
 
 import java.io.EOFException;
 import java.io.IOException;
